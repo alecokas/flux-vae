@@ -8,7 +8,7 @@ using Parameters: @with_kw
 
 
 @with_kw struct CmdLineArgs
-    num_epochs::Int32 = 20
+    num_epochs::Int32 = 1
     batch_size::Int32 = 16
     shuffle_data::Bool = true
     channel_depth::Int32 = 32

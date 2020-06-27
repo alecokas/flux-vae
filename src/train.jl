@@ -18,7 +18,7 @@ using Random
 function get_train_loader(batch_size, shuffle::Bool)
     # FashionMNIST is made up of 60k 28 by 28 greyscale images
     train_x, train_y = FashionMNIST.traindata(Float32)
-    train_x = reshape(train_x, (28, 28, 1, :)) # Flatten
+    train_x = reshape(train_x, (28, 28, 1, :))
     train_x = parent(padarray(train_x, Fill(0, (2,2,0,0))))
     return DataLoader(train_x, train_y, batchsize=batch_size, shuffle=shuffle)
 end
