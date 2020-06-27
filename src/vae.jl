@@ -20,9 +20,9 @@ struct Encoder
     μ_layer
     logσ_layer
     Encoder(channel_depth::Int32, kernel_width::Int32, hidden_dims::Int32, latent_dims::Int32, device) = new(
-        Conv((kernel_width, kernel_width), 1 => channel_depth, relu; stride = 2) |> device,
-        Conv((kernel_width, kernel_width), channel_depth => channel_depth, relu; stride = 2) |> device,
-        Conv((kernel_width, kernel_width), channel_depth => channel_depth, relu; stride = 2) |> device,
+        Conv((kernel_width, kernel_width), 1 => channel_depth, relu; stride = 2, pad = 1) |> device,
+        Conv((kernel_width, kernel_width), channel_depth => channel_depth, relu; stride = 2, pad = 1) |> device,
+        Conv((kernel_width, kernel_width), channel_depth => channel_depth, relu; stride = 2, pad = 1) |> device,
         flatten |> device,
         Dense(channel_depth * kernel_width * kernel_width, hidden_dims, relu) |> device,
         Dense(hidden_dims, hidden_dims, relu) |> device,
@@ -34,7 +34,6 @@ end
 
 function (encoder::Encoder)(x)
     # Anonymous function to forward pass the encoder
-    println(size(x))
     x = encoder.conv_3(encoder.conv_2(encoder.conv_1(x)))
     x = encoder.dense_2(encoder.dense_1(encoder.flatten_layer(x)))
     return encoder.μ_layer(x), encoder.logσ_layer(x)
@@ -55,17 +54,18 @@ struct Decoder
         kernel_width,
         Dense(latent_dims, hidden_dims, relu) |> device,
         Dense(hidden_dims, hidden_dims, relu) |> device,
-        Dense(hidden_dims, hidden_dims, relu) |> device,
-        ConvTranspose((kernel_width, kernel_width), channel_depth => channel_depth, relu; stride = 2) |> device,
-        ConvTranspose((kernel_width, kernel_width), channel_depth => channel_depth, relu; stride = 2) |> device,
-        ConvTranspose((kernel_width, kernel_width), channel_depth => 1, σ; stride = 2) |> device
+        Dense(hidden_dims, channel_depth * kernel_width * kernel_width, relu) |> device,
+        ConvTranspose((kernel_width, kernel_width), channel_depth => channel_depth, relu; stride = 2, pad = 1) |> device,
+        ConvTranspose((kernel_width, kernel_width), channel_depth => channel_depth, relu; stride = 2, pad = 1) |> device,
+        ConvTranspose((kernel_width, kernel_width), channel_depth => 1, σ; stride = 2, pad = 1) |> device
     )
 end
 
 function (decoder::Decoder)(z)
     # Anonymous function to forward pass the decoder
+    batch_size = size(z)[end]
     z = decoder.dense_3(decoder.dense_2(decoder.dense_1(z)))
-    z = reshape(z, decoder.kernel_width, decoder.kernel_width, decoder.channel_depth, :)
+    z = reshape(z, (decoder.kernel_width, decoder.kernel_width, decoder.channel_depth, batch_size))
     return decoder.deconv_3(decoder.deconv_2(decoder.deconv_1(z)))
 end
 
@@ -94,10 +94,10 @@ function vae_loss(encoder::Encoder, decoder::Decoder, x, β::Float32, device)
     # The @. macro makes sure that all operates are elementwise
     kl_q_p = 0.5f0 * sum(@. (exp(2f0*logσ) + μ^2 - 2f0*logσ - 1f0)) / batch_size
     
-    println("=====")
-    println(logp_x_z)
-    println(kl_q_p)
-    println("=====")
+    # println("=====")
+    # println(logp_x_z)
+    # println(kl_q_p)
+    # println("=====")
 
     # We want to maximise the evidence lower bound (ELBO)
     elbo = logp_x_z - β .* kl_q_p
