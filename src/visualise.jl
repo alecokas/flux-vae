@@ -24,7 +24,9 @@ end
 function visualise()
     # Load saved models and CLI settings
     args = Utils.load_arguments("results")
+    println("ABOUT TO LOAD")
     encoder, decoder = VAE.load_model("results", 1)
+    println("LOADED")
 
     # Load the data
     dataloader = get_test_loader(args.batch_size, args.shuffle_data)

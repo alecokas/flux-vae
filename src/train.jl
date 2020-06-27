@@ -23,8 +23,8 @@ function get_train_loader(batch_size, shuffle::Bool)
     return DataLoader(train_x, train_y, batchsize=batch_size, shuffle=shuffle)
 end
 
-function train(; kws...)
-    args = Utils.CmdLineArgs(; kws...)
+function train()
+    args = Utils.CmdLineArgs()
     Utils.save_arguments(args.save_dir, args)
     if !isdir(args.save_dir)
         mkdir(args.save_dir)
