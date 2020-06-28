@@ -83,17 +83,17 @@ function train()
             @info("$avg_epoch_loss")
         end
         println(avg_epoch_loss)
-        if avg_epoch_loss < best_loss
-            VAE.save_model(encoder, decoder, args.save_dir, epoch_num)
-        end
+        # if avg_epoch_loss < best_loss
+        #     VAE.save_model(encoder, decoder, args.save_dir, epoch_num)
+        # end
 
     end
     println("Training complete!")
-    return encoder, decoder, args
+    return encoder, decoder, args, device
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
     Random.seed!(123)
-    encoder, decoder, args = train()
-    VIZ.visualise(encoder, decoder, args)
+    encoder, decoder, args, device = train()
+    VIZ.visualise(encoder, decoder, args, device)
 end
