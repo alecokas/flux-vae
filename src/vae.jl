@@ -65,11 +65,14 @@ function (decoder::Decoder)(z)
     # Anonymous function to forward pass the decoder
     batch_size = size(z)[end]
     z = decoder.dense_3(decoder.dense_2(decoder.dense_1(z)))
+    # println("Line before")
     z = reshape(z, (decoder.kernel_width, decoder.kernel_width, decoder.channel_depth, batch_size))
-    return decoder.deconv_3(decoder.deconv_2(decoder.deconv_1(z)))
+    z = decoder.deconv_3(decoder.deconv_2(decoder.deconv_1(z)))
+    # println("About to return")
+    return z
 end
 
-function forward_pass(x, encoder::Encoder, decoder::Decoder, device)
+function forward_pass(x, encoder, decoder, device)
     # Compress into latent space
     μ, logσ = encoder(x)
     # Apply reparameterisation trick to sample latent
@@ -86,14 +89,14 @@ function vae_loss(encoder::Encoder, decoder::Decoder, x, β::Float32, device)
 
     # Forward propagate through VAE
     x̂, μ, logσ, = forward_pass(x, encoder, decoder, device)
-
+    # println("Forward pass done")
     # Negative reconstruction loss Ε_q[logp_x_z]
     logp_x_z = -sum(logitbinarycrossentropy.(x̂, x)) / batch_size
-
+    # println("logitbinarycrossentropy done")
     # KL(qᵩ(z|x)||p(z)) where p(z)=N(0,1) and qᵩ(z|x) models the encoder i.e. reverse KL
     # The @. macro makes sure that all operates are elementwise
     kl_q_p = 0.5f0 * sum(@. (exp(2f0*logσ) + μ^2 - 2f0*logσ - 1f0)) / batch_size
-    
+    # println("kl_q_p done")
     # println("=====")
     # println(logp_x_z)
     # println(kl_q_p)

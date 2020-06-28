@@ -2,6 +2,8 @@ include("vae.jl")
 import .VAE
 include("utils.jl")
 import .Utils
+include("visualise.jl")
+import .VIZ
 
 using Flux: ADAM
 using Flux: params, pullback, cpu, gpu
@@ -63,9 +65,12 @@ function train()
             loss, back = pullback(trainable_params) do
                 VAE.vae_loss(encoder, decoder, x_batch |> device, args.β, device)
             end
+            # println("Finish pullback")
             # Feed the pullback 1 to obtain the gradients and update the model parameters
             gradients = back(1f0)
+            # println("Finished back")
             update!(optimiser, trainable_params, gradients)
+            # println("Update done")
 
             acc_epoch_loss += loss
 
@@ -83,10 +88,12 @@ function train()
         end
 
     end
-    println("Complete!")
+    println("Training complete!")
+    return encoder, decoder, args
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
     Random.seed!(123)
-    train()
+    encoder, decoder, args = train()
+    VIZ.visualise(encoder, decoder, args)
 end
