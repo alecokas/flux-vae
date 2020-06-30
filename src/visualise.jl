@@ -29,26 +29,25 @@ function convert_to_image(x, y_size)
     Gray.(permutedims(vcat(reshape.(chunk(sigmoid.(x |> cpu), y_size), 32, :)...), (2, 1)))
 end
 
-function construct(x, encoder, decoder, device)
+function construct(x, encoder, decoder)
     # Compress into latent space
     μ, logσ = encoder(x)
     # Apply reparameterisation trick to sample latent
     ϵ = randn(Float32, size(logσ))
-    z = μ + device(ϵ) .* exp.(logσ)
+    z = μ + ϵ .* exp.(logσ)
     # Reconstruct from latent sample
     x̂ = decoder(z)
 
     return x̂, μ, logσ
 end
 
-function visualise(encoder, decoder, args, device)
+function visualise(encoder, decoder, args)
     dataloader = get_test_loader(args.batch_size, args.shuffle_data)
-    # device = Utils.get_device(args.use_gpu)
 
     for (sample_idx, (x_batch, y_batch)) in enumerate(dataloader)
         # Reconstruction
         println("About to forward pass")
-        reconstruction, _, _ = construct(x_batch, encoder, decoder, device)
+        reconstruction, _, _ = construct(x_batch, encoder, decoder)
         println("Finished the forward pass")
         rec_image = convert_to_image(reconstruction, args.samples_per_image)
         reconstruct_image_path = joinpath(args.save_path, "reconstruct-$sample_idx.png")

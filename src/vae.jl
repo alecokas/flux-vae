@@ -10,20 +10,51 @@ using Flux: params, cpu, gpu
 using NNlib: relu, σ
 
 
-function create_latent_encoders(channel_depth::Int32, kernel_width::Int32, hidden_dims::Int32, latent_dims::Int32, device)
-    encoder_features = Chain(
+struct Encoder
+    # Encoder definition
+    conv_1
+    conv_2
+    conv_3
+    flatten_layer
+    dense_1
+    dense_2
+    μ_layer
+    logσ_layer
+    Encoder(channel_depth::Int32, kernel_width::Int32, hidden_dims::Int32, latent_dims::Int32) = new(
         Conv((kernel_width, kernel_width), 1 => channel_depth, relu; stride = 2, pad = 1),
         Conv((kernel_width, kernel_width), channel_depth => channel_depth, relu; stride = 2, pad = 1),
         Conv((kernel_width, kernel_width), channel_depth => channel_depth, relu; stride = 2, pad = 1),
         flatten,
         Dense(channel_depth * kernel_width * kernel_width, hidden_dims, relu),
-        Dense(hidden_dims, hidden_dims, relu)
+        Dense(hidden_dims, hidden_dims, relu),
+        Dense(hidden_dims, latent_dims), # Transform into bottleneck μ representation
+        Dense(hidden_dims, latent_dims)  # Transform into bottleneck logσ representation
+
     )
 
     encoder_μ = Chain(encoder_features, Dense(hidden_dims, latent_dims)) |> device
     encoder_logσ = Chain(encoder_features, Dense(hidden_dims, latent_dims)) |> device
 
-    return encoder_μ, encoder_logσ
+struct Decoder
+    # Decoder definition
+    channel_depth
+    kernel_width
+    dense_1
+    dense_2
+    dense_3
+    deconv_1
+    deconv_2
+    deconv_3
+    Decoder(channel_depth::Int32, kernel_width::Int32, hidden_dims::Int32, latent_dims::Int32) = new(
+        channel_depth,
+        kernel_width,
+        Dense(latent_dims, hidden_dims, relu),
+        Dense(hidden_dims, hidden_dims, relu),
+        Dense(hidden_dims, channel_depth * kernel_width * kernel_width, relu),
+        ConvTranspose((kernel_width, kernel_width), channel_depth => channel_depth, relu; stride = 2, pad = 1),
+        ConvTranspose((kernel_width, kernel_width), channel_depth => channel_depth, relu; stride = 2, pad = 1),
+        ConvTranspose((kernel_width, kernel_width), channel_depth => 1, σ; stride = 2, pad = 1)
+    )
 end
 
 function create_decoder(channel_depth::Int32, kernel_width::Int32, hidden_dims::Int32, latent_dims::Int32, device)
@@ -39,7 +70,7 @@ function create_decoder(channel_depth::Int32, kernel_width::Int32, hidden_dims::
     return decoder
 end
 
-function forward_pass(x, encoder_μ, encoder_logσ, decoder, device)
+function forward_pass(x, encoder, decoder)
     # Compress into latent space
     # μ, logσ = encoder(x)
     μ = encoder_μ(x)
@@ -47,18 +78,18 @@ function forward_pass(x, encoder_μ, encoder_logσ, decoder, device)
 
     # Apply reparameterisation trick to sample latent
     ϵ = randn(Float32, size(logσ))
-    z = μ + device(ϵ) .* exp.(logσ)
+    z = μ + ϵ .* exp.(logσ)
     # Reconstruct from latent sample
     x̂ = decoder(z)
 
     return x̂, μ, logσ
 end
 
-function vae_loss(encoder_μ, encoder_logσ, decoder, x, β::Float32, device)
+function vae_loss(encoder, decoder, x, β::Float32)
     batch_size = size(x)[end]
 
     # Forward propagate through VAE
-    x̂, μ, logσ, = forward_pass(x, encoder_μ, encoder_logσ, decoder, device)
+    x̂, μ, logσ, = forward_pass(x, encoder, decoder)
     # println("Forward pass done")
     # Negative reconstruction loss Ε_q[logp_x_z]
     logp_x_z = -sum(logitbinarycrossentropy.(x̂, x)) / batch_size
