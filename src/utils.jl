@@ -17,7 +17,7 @@ using Parameters: @with_kw
     hidden_dims::Int32 = 256
     learning_rate::Float32 = 0.0001
     β::Float32 = 1f1
-    use_gpu::Bool = true
+    use_gpu::Bool = false
     save_dir::String = "results"
     samples_per_image::Int32 = 1
 end
