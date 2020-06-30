@@ -1,7 +1,6 @@
 module Utils
 
 using BSON: @save, @load
-using CUDA: has_cuda_gpu
 using DrWatson: struct2dict
 using Flux: cpu, gpu
 using Parameters: @with_kw
@@ -17,19 +16,8 @@ using Parameters: @with_kw
     hidden_dims::Int32 = 256
     learning_rate::Float32 = 0.0001
     β::Float32 = 1f1
-    use_gpu::Bool = true
     save_dir::String = "results"
     samples_per_image::Int32 = 1
-end
-
-function get_device(request_gpu::Bool)
-    if request_gpu & has_cuda_gpu()
-        println("Using GPU")
-        return gpu
-    else
-        println("Using CPU")
-        return cpu
-    end
 end
 
 function save_arguments(save_dir::String, args)
@@ -45,6 +33,6 @@ function load_arguments(load_dir::String)
     return args
 end
 
-export get_device, save_arguments, load_arguments, CmdLineArgs
+export save_arguments, load_arguments, CmdLineArgs
 
 end

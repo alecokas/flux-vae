@@ -19,15 +19,15 @@ struct Encoder
     dense_2
     μ_layer
     logσ_layer
-    Encoder(channel_depth::Int32, kernel_width::Int32, hidden_dims::Int32, latent_dims::Int32, device) = new(
-        Conv((kernel_width, kernel_width), 1 => channel_depth, relu; stride = 2, pad = 1) |> device,
-        Conv((kernel_width, kernel_width), channel_depth => channel_depth, relu; stride = 2, pad = 1) |> device,
-        Conv((kernel_width, kernel_width), channel_depth => channel_depth, relu; stride = 2, pad = 1) |> device,
-        flatten |> device,
-        Dense(channel_depth * kernel_width * kernel_width, hidden_dims, relu) |> device,
-        Dense(hidden_dims, hidden_dims, relu) |> device,
-        Dense(hidden_dims, latent_dims) |> device, # Transform into bottleneck μ representation
-        Dense(hidden_dims, latent_dims) |> device  # Transform into bottleneck logσ representation
+    Encoder(channel_depth::Int32, kernel_width::Int32, hidden_dims::Int32, latent_dims::Int32) = new(
+        Conv((kernel_width, kernel_width), 1 => channel_depth, relu; stride = 2, pad = 1),
+        Conv((kernel_width, kernel_width), channel_depth => channel_depth, relu; stride = 2, pad = 1),
+        Conv((kernel_width, kernel_width), channel_depth => channel_depth, relu; stride = 2, pad = 1),
+        flatten,
+        Dense(channel_depth * kernel_width * kernel_width, hidden_dims, relu),
+        Dense(hidden_dims, hidden_dims, relu),
+        Dense(hidden_dims, latent_dims), # Transform into bottleneck μ representation
+        Dense(hidden_dims, latent_dims)  # Transform into bottleneck logσ representation
 
     )
 end
@@ -49,15 +49,15 @@ struct Decoder
     deconv_1
     deconv_2
     deconv_3
-    Decoder(channel_depth::Int32, kernel_width::Int32, hidden_dims::Int32, latent_dims::Int32, device) = new(
+    Decoder(channel_depth::Int32, kernel_width::Int32, hidden_dims::Int32, latent_dims::Int32) = new(
         channel_depth,
         kernel_width,
-        Dense(latent_dims, hidden_dims, relu) |> device,
-        Dense(hidden_dims, hidden_dims, relu) |> device,
-        Dense(hidden_dims, channel_depth * kernel_width * kernel_width, relu) |> device,
-        ConvTranspose((kernel_width, kernel_width), channel_depth => channel_depth, relu; stride = 2, pad = 1) |> device,
-        ConvTranspose((kernel_width, kernel_width), channel_depth => channel_depth, relu; stride = 2, pad = 1) |> device,
-        ConvTranspose((kernel_width, kernel_width), channel_depth => 1, σ; stride = 2, pad = 1) |> device
+        Dense(latent_dims, hidden_dims, relu),
+        Dense(hidden_dims, hidden_dims, relu),
+        Dense(hidden_dims, channel_depth * kernel_width * kernel_width, relu),
+        ConvTranspose((kernel_width, kernel_width), channel_depth => channel_depth, relu; stride = 2, pad = 1),
+        ConvTranspose((kernel_width, kernel_width), channel_depth => channel_depth, relu; stride = 2, pad = 1),
+        ConvTranspose((kernel_width, kernel_width), channel_depth => 1, σ; stride = 2, pad = 1)
     )
 end
 
@@ -72,23 +72,23 @@ function (decoder::Decoder)(z)
     return z
 end
 
-function forward_pass(x, encoder, decoder, device)
+function forward_pass(x, encoder, decoder)
     # Compress into latent space
     μ, logσ = encoder(x)
     # Apply reparameterisation trick to sample latent
     ϵ = randn(Float32, size(logσ))
-    z = μ + device(ϵ) .* exp.(logσ)
+    z = μ + ϵ .* exp.(logσ)
     # Reconstruct from latent sample
     x̂ = decoder(z)
 
     return x̂, μ, logσ
 end
 
-function vae_loss(encoder::Encoder, decoder::Decoder, x, β::Float32, device)
+function vae_loss(encoder::Encoder, decoder::Decoder, x, β::Float32)
     batch_size = size(x)[end]
 
     # Forward propagate through VAE
-    x̂, μ, logσ, = forward_pass(x, encoder, decoder, device)
+    x̂, μ, logσ, = forward_pass(x, encoder, decoder)
     # println("Forward pass done")
     # Negative reconstruction loss Ε_q[logp_x_z]
     logp_x_z = -sum(logitbinarycrossentropy.(x̂, x)) / batch_size

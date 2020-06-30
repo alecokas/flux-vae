@@ -2,8 +2,8 @@ include("vae.jl")
 import .VAE
 include("utils.jl")
 import .Utils
-include("visualise.jl")
-import .VIZ
+# include("visualise.jl")
+# import .VIZ
 
 using Flux: ADAM
 using Flux: params, pullback, cpu, gpu
@@ -27,11 +27,10 @@ end
 
 function train()
     args = Utils.CmdLineArgs()
-    Utils.save_arguments(args.save_dir, args)
     if !isdir(args.save_dir)
         mkdir(args.save_dir)
     end
-    device = Utils.get_device(args.use_gpu)
+    Utils.save_arguments(args.save_dir, args)
 
     # Create loss logger
     io = open(joinpath(args.save_dir, "log.txt"), "w+")
@@ -41,9 +40,9 @@ function train()
     end
 
     # TODO: Change this so that we automatically detect input dims
-    # channel_depth::Int32, kernel_width::Int32, hidden_dims::Int32, latent_dims::Int32, device
-    encoder = VAE.Encoder(args.channel_depth, args.kernel_width, args.hidden_dims, args.latent_dims, device)
-    decoder = VAE.Decoder(args.channel_depth, args.kernel_width, args.hidden_dims, args.latent_dims, device)
+    # channel_depth::Int32, kernel_width::Int32, hidden_dims::Int32, latent_dims::Int32
+    encoder = VAE.Encoder(args.channel_depth, args.kernel_width, args.hidden_dims, args.latent_dims)
+    decoder = VAE.Decoder(args.channel_depth, args.kernel_width, args.hidden_dims, args.latent_dims)
     trainable_params = params(
         encoder.conv_1, encoder.conv_2, encoder.conv_3, encoder.dense_1, encoder.dense_2,
         encoder.μ_layer, encoder.logσ_layer, decoder.dense_1, decoder.dense_2,
@@ -63,7 +62,7 @@ function train()
         for (x_batch, y_batch) in dataloader
             # pullback function returns the result (loss) and a pullback operator (back)
             loss, back = pullback(trainable_params) do
-                VAE.vae_loss(encoder, decoder, x_batch |> device, args.β, device)
+                VAE.vae_loss(encoder, decoder, x_batch, args.β)
             end
             # println("Finish pullback")
             # Feed the pullback 1 to obtain the gradients and update the model parameters
@@ -89,11 +88,11 @@ function train()
 
     end
     println("Training complete!")
-    return encoder, decoder, args, device
+    return encoder, decoder, args
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
     Random.seed!(123)
-    encoder, decoder, args, device = train()
-    VIZ.visualise(encoder, decoder, args, device)
+    encoder, decoder, args = train()
+    # VIZ.visualise(encoder, decoder, args)
 end
