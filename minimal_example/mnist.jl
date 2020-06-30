@@ -2,15 +2,15 @@ using Flux
 using Flux: logitbinarycrossentropy
 using Flux.Data: DataLoader
 using ImageFiltering
-using MLDatasets: FashionMNIST
+using MLDatasets: MNIST
 using Random
 
 
 function get_train_loader(batch_size, shuffle::Bool)
-    # FashionMNIST is made up of 60k 28 by 28 greyscale images
-    train_x, train_y = FashionMNIST.traindata(Float32)
-    train_x = reshape(train_x, (28, 28, 1, :))
-    train_x = parent(padarray(train_x, Fill(0, (2,2,0,0))))
+    # MNIST is made up of 60k 28 by 28 greyscale images
+    train_x, train_y = MNIST.traindata(Float32)
+    train_x = reshape(train_x, (28 * 28, :))
+    # train_x = parent(padarray(train_x, Fill(0, (2,2,0,0))))
     return DataLoader(train_x, train_y, batchsize=batch_size, shuffle=shuffle)
 end
 
@@ -40,23 +40,15 @@ end
 function train()
     # Define the encoder network
     encoder_features = Chain(
-        Conv((4, 4), 1 => 32, relu; stride = 2, pad = 1),
-        Conv((4, 4), 32 => 32, relu; stride = 2, pad = 1),
-        Conv((4, 4), 32 => 32, relu; stride = 2, pad = 1),
-        flatten,
-        Dense(32 * 4 * 4, 256, relu),
+        Dense(28 * 28, 512, relu),
     )
-    encoder_μ = Chain(encoder_features, Dense(256, 10))
-    encoder_logσ = Chain(encoder_features, Dense(256, 10))
+    encoder_μ = Chain(encoder_features, Dense(512, 10))
+    encoder_logσ = Chain(encoder_features, Dense(512, 10))
 
     # Define the decoder network
     decoder = Chain(
-        Dense(10, 256, relu),
-        Dense(256, 32 * 4 * 4, relu),
-        x -> reshape(x, (4, 4, 32, 16)),
-        ConvTranspose((4, 4), 32 => 32, relu; stride = 2, pad = 1),
-        ConvTranspose((4, 4), 32 => 32, relu; stride = 2, pad = 1),
-        ConvTranspose((4, 4), 32 => 1; stride = 2, pad = 1)
+        Dense(10, 512, relu),
+        Dense(512, 28 * 28),
     )
 
     trainable_params = Flux.params(encoder_μ, encoder_logσ, decoder)
@@ -67,7 +59,8 @@ function train()
     shuffle_data = true
     dataloader = get_train_loader(batch_size, shuffle_data)
 
-    for epoch_num = 1:10
+    for epoch_num = 1:5
+        println(epoch_num)
         for (x_batch, y_batch) in dataloader
             # pullback function returns the result (loss) and a pullback operator (back)
             loss, back = Flux.pullback(trainable_params) do
