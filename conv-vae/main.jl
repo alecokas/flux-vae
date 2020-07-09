@@ -11,6 +11,15 @@ using Random
 using Zygote
 
 
+# We define a reshape layer because the reshape function is problematic for loading later on
+struct Reshape
+    shape
+end
+Reshape(args...) = Reshape(args)
+(r::Reshape)(x) = reshape(x, r.shape)
+Flux.@functor Reshape ()
+
+
 function get_train_loader(batch_size, shuffle::Bool)
     # FashionMNIST is made up of 60k 28 by 28 greyscale images
     train_x, train_y = FashionMNIST.traindata(Float32)
@@ -29,33 +38,33 @@ function save_model(encoder_μ, encoder_logvar, decoder, save_dir::String, epoch
 end
 
 
-# function create_vae()
-#     # Define the encoder and decoder networks
-#     encoder_features = Chain(
-#         Conv((4, 4), 1 => 32, relu; stride = 2, pad = 1),
-#         Conv((4, 4), 32 => 32, relu; stride = 2, pad = 1),
-#         Conv((4, 4), 32 => 32, relu; stride = 2, pad = 1),
-#         Flux.flatten,
-#         Dense(32 * 4 * 4, 256, relu),
-#         Dense(256, 256, relu)
-#     )
-#     encoder_μ = Chain(encoder_features, Dense(256, 10))
-#     encoder_logvar = Chain(encoder_features, Dense(256, 10))
+function create_vae()
+    # Define the encoder and decoder networks
+    encoder_features = Chain(
+        Conv((4, 4), 1 => 32, relu; stride = 2, pad = 1),
+        Conv((4, 4), 32 => 32, relu; stride = 2, pad = 1),
+        Conv((4, 4), 32 => 32, relu; stride = 2, pad = 1),
+        Flux.flatten,
+        Dense(32 * 4 * 4, 256, relu),
+        Dense(256, 256, relu)
+    )
+    encoder_μ = Chain(encoder_features, Dense(256, 10))
+    encoder_logvar = Chain(encoder_features, Dense(256, 10))
 
-#     decoder = Chain(
-#         Dense(10, 256, relu),
-#         Dense(256, 256, relu),
-#         Dense(256, 32 * 4 * 4, relu),
-#         x -> reshape(x, (4, 4, 32, :)),
-#         ConvTranspose((4, 4), 32 => 32, relu; stride = 2, pad = 1),
-#         ConvTranspose((4, 4), 32 => 32, relu; stride = 2, pad = 1),
-#         ConvTranspose((4, 4), 32 => 1; stride = 2, pad = 1)
-#     )
-#     return encoder_μ, encoder_logvar, decoder
-# end
+    decoder = Chain(
+        Dense(10, 256, relu),
+        Dense(256, 256, relu),
+        Dense(256, 32 * 4 * 4, relu),
+        Reshape(4, 4, 32, :),
+        ConvTranspose((4, 4), 32 => 32, relu; stride = 2, pad = 1),
+        ConvTranspose((4, 4), 32 => 32, relu; stride = 2, pad = 1),
+        ConvTranspose((4, 4), 32 => 1; stride = 2, pad = 1)
+    )
+    return encoder_μ, encoder_logvar, decoder
+end
 
 
-function vae_loss(encoder_μ, encoder_logvar, decoder, x, β)
+function vae_loss(encoder_μ, encoder_logvar, decoder, x, β, λ)
     batch_size = size(x)[end]
     @assert batch_size != 0
 
@@ -71,43 +80,16 @@ function vae_loss(encoder_μ, encoder_logvar, decoder, x, β)
     # KL(qᵩ(z|x)||p(z)) where p(z)=N(0,1) and qᵩ(z|x) models the encoder i.e. reverse KL
     # The @. macro makes sure that all operates are elementwise
     kl_q_p = 0.5f0 * sum(@. (exp(logvar) + μ^2 - logvar - 1f0)) / batch_size
+    # Weight decay regularisation term
+    reg = λ * sum(x->sum(x.^2), Flux.params(encoder_μ, encoder_logvar, decoder))
     # We want to maximise the evidence lower bound (ELBO)
-    # println(batch_size)
-    # println(x[:,15,1,1])
-    println(μ[:,1])
-    println(logvar[:,1])
-    println(x̂[:,15,1,1])
-    println(logp_x_z)
-    println(kl_q_p)
     elbo = logp_x_z - β .* kl_q_p
-    # println(-elbo)
-    println("====")
-    return -elbo
+    # So we minimise the sum of the negative ELBO and a weight penalty
+    return -elbo + reg
 end
 
 
-function train( dataloader, num_epochs, β, optimiser, save_dir)
-    encoder_features = Chain(
-        Conv((4, 4), 1 => 32, relu; stride = 2, pad = 1, init=Flux.glorot_normal),
-        Conv((4, 4), 32 => 32, relu; stride = 2, pad = 1, init=Flux.glorot_normal),
-        Conv((4, 4), 32 => 32, relu; stride = 2, pad = 1, init=Flux.glorot_normal),
-        Flux.flatten,
-        Dense(32 * 4 * 4, 256, relu),
-        Dense(256, 256, relu)
-    )
-    encoder_μ = Chain(encoder_features, Dense(256, 10))
-    encoder_logvar = Chain(encoder_features, Dense(256, 10))
-
-    decoder = Chain(
-        Dense(10, 256, relu),
-        Dense(256, 256, relu),
-        Dense(256, 32 * 4 * 4, relu),
-        x -> reshape(x, (4, 4, 32, :)),
-        ConvTranspose((4, 4), 32 => 32, relu; stride = 2, pad = 1, init=Flux.glorot_normal),
-        ConvTranspose((4, 4), 32 => 32, relu; stride = 2, pad = 1, init=Flux.glorot_normal),
-        ConvTranspose((4, 4), 32 => 1; stride = 2, pad = 1, init=Flux.glorot_normal)
-    )
-
+function train(encoder_μ, encoder_logvar, decoder, dataloader, num_epochs, λ, β, optimiser, save_dir)
     # The training loop for the model
     trainable_params = Flux.params(encoder_μ, encoder_logvar, decoder)
 
@@ -117,7 +99,7 @@ function train( dataloader, num_epochs, β, optimiser, save_dir)
         for (x_batch, y_batch) in dataloader
             # pullback function returns the result (loss) and a pullback operator (back)
             loss, back = pullback(trainable_params) do
-                vae_loss(encoder_μ, encoder_logvar, decoder, x_batch, β)
+                vae_loss(encoder_μ, encoder_logvar, decoder, x_batch, β, λ)
             end
             # Feed the pullback 1 to obtain the gradients and update then model parameters
             gradients = back(1f0)
@@ -130,9 +112,6 @@ function train( dataloader, num_epochs, β, optimiser, save_dir)
         end
         @assert length(dataloader) > 0
         avg_loss = acc_loss / length(dataloader)
-        println("avg_loss: $avg_loss")
-        println("avg_loss: $avg_loss")
-        println("length(dataloader): $(length(dataloader))")
         metrics = DataFrame(epoch=epoch_num, negative_elbo=avg_loss)
         println(metrics)
         CSV.write(joinpath(save_dir, "metrics.csv"), metrics, header=(epoch_num==1), append=true)
@@ -146,12 +125,13 @@ if abspath(PROGRAM_FILE) == @__FILE__
     shuffle_data = true
     η = 0.001
     β = 1f0
-    num_epochs = 4
+    λ = 0.01f0
+    num_epochs = 100
     save_dir = "results"
 
     dataloader = get_train_loader(batch_size, shuffle_data)
-    # encoder_μ, encoder_logvar, decoder = create_vae()
+    encoder_μ, encoder_logvar, decoder = create_vae()
 
-    train(dataloader, num_epochs, β, ADAM(η), save_dir)
+    train(encoder_μ, encoder_logvar, decoder, dataloader, num_epochs, λ, β, ADAM(η), save_dir)
 end
 
