@@ -1,7 +1,7 @@
 # flux-vae
 This repository accompanies my blog post "Convolutional VAE in Flux" where we take a look at variational autoencoders and do a walk-through demo of a [Flux](https://fluxml.ai/) implementation of a convolutional VAE using the FashionMNIST benchmark dataset.
 
-<div style="text-align:center"><img src="/images/vae.png" width="400"/>
+<div style="text-align:center"><img src="/images/vae.png" width="600"/>
 </div><br/>
 
 ## Training
@@ -18,16 +18,7 @@ julia --project=vaeenv conv-vae/visualise.jl
 ```
 Some original test set samples (on the left) with the coresponding reconstructions (on the right):
 
-<!-- ![Test Data Reconstruction](/images/recon.png | width=200) -->
-<style>
-.center {
-  display: block;
-  margin-left: auto;
-  margin-right: auto;
-  width: 50%;
-}
-</style>
-<img src="/images/recon.png" alt="reconstruction-drawing" width="400"  class="center"/>
+<img src="/images/recon.png" alt="reconstruction-drawing" width="400"/>
 
 ## Dependencies
 This code has been tested using Julia version 1.4.1. The package environment status is as follows:
@@ -58,3 +49,13 @@ This code has been tested using Julia version 1.4.1. The package environment sta
 You can also have a look in the `vaeenv` directory where I have commited my `Project.toml` and `Manifest.toml` files for you to inspect the dependences.
 
 
+To cite this work, please site the linked blog post:
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code>@article{kastanos20fluxvae,
+  title   = "Convolutional VAE in Flux",
+  author  = "Alexandros Kastanos",
+  journal = "alecokas.github.io",
+  year    = "2020",
+  url     = "https://alecokas.github.io/julia/flux/vae/2020/07/20/convolutional-vae-in-flux.html"
+}
+</code></pre></div></div>
