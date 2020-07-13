@@ -50,15 +50,19 @@ function load_model(load_dir::String, epoch::Int)
 end
 
 function visualise()
-    encoder_μ, encoder_logvar, decoder = load_model("results", 4)
-    batch_size = 16
+    # Define some parameters
+    batch_size = 64
     shuffle = true
+    num_images = 30
+    epoch_to_load = 10
+    # Load the model and test set loader
+    encoder_μ, encoder_logvar, decoder = load_model("results", epoch_to_load)
     dataloader = get_test_loader(batch_size, shuffle)
-
+    # Reconstruct and save some images
     for (x_batch, y_batch) in dataloader
-        save_to_images(x_batch, "results", "test-image", 4)
+        save_to_images(x_batch, "results", "test-image", num_images)
         x̂_batch = reconstruct_images(encoder_μ, encoder_logvar, decoder, x_batch)
-        save_to_images(x̂_batch, "results", "reconstruction", 4)
+        save_to_images(x̂_batch, "results", "reconstruction", num_images)
         break
     end
 end

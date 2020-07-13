@@ -11,7 +11,7 @@ using Random
 using Zygote
 
 
-# We define a reshape layer because the reshape function is problematic for loading later on
+# We define a reshape layer to use in our decoder
 struct Reshape
     shape
 end
@@ -21,7 +21,7 @@ Flux.@functor Reshape ()
 
 
 function get_train_loader(batch_size, shuffle::Bool)
-    # FashionMNIST is made up of 60k 28 by 28 greyscale images
+    # The FashionMNIST training set is made up of 60k 28 by 28 greyscale images
     train_x, train_y = FashionMNIST.traindata(Float32)
     train_x = reshape(train_x, (28, 28, 1, :))
     train_x = parent(padarray(train_x, Fill(0, (2,2,0,0))))
@@ -121,17 +121,18 @@ function train(encoder_μ, encoder_logvar, decoder, dataloader, num_epochs, λ, 
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    batch_size = 16
+    # Define some hyperparams
+    batch_size = 64
     shuffle_data = true
-    η = 0.001
+    η = 0.0001
     β = 1f0
     λ = 0.01f0
-    num_epochs = 100
+    num_epochs = 10
     save_dir = "results"
-
+    # Define the model and create our data loader
     dataloader = get_train_loader(batch_size, shuffle_data)
     encoder_μ, encoder_logvar, decoder = create_vae()
-
+    # Train the model, log metrics, and save
     train(encoder_μ, encoder_logvar, decoder, dataloader, num_epochs, λ, β, ADAM(η), save_dir)
 end
 
