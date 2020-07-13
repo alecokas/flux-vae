@@ -1,6 +1,8 @@
 # flux-vae
 This repository accompanies my blog post "Convolutional VAE in Flux" where we take a look at variational autoencoders and do a walk-through demo of a [Flux](https://fluxml.ai/) implementation of a convolutional VAE using the FashionMNIST benchmark dataset.
 
+![VAE Overview](/images/vae.png)
+
 ## Training
 You can train the model directly from these scripts by running the following in your terminal:
 ```
@@ -13,7 +15,8 @@ Similarly, you can visualise reconstructed images from the test set by running:
 ```
 julia --project=vaeenv conv-vae/visualise.jl
 ```
-Some original test set samples (on the left) with the coresponding reconstructions:
+Some original test set samples (on the left) with the coresponding reconstructions (on the right):
+![Test Data Reconstruction](/images/recon.png)
 
 
 ## Dependencies
