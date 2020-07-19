@@ -1,5 +1,5 @@
 # flux-vae
-This repository accompanies my blog post "Convolutional VAE in Flux" where we take a look at variational autoencoders and do a walk-through demo of a [Flux](https://fluxml.ai/) implementation of a convolutional VAE using the FashionMNIST benchmark dataset.
+This repository accompanies my blog post ["Convolutional VAE in Flux"](http://alecokas.github.io/julia/flux/vae/2020/07/22/convolutional-vae-in-flux.html) where we take a look at variational autoencoders and do a walk-through demo of a [Flux](https://fluxml.ai/) implementation of a convolutional VAE using the FashionMNIST benchmark dataset.
 
 <div style="text-align:center"><img src="/images/vae.png" width="600"/>
 </div><br/>
