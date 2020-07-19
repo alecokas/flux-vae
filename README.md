@@ -56,6 +56,6 @@ To cite this work, please site the linked blog post:
   author  = "Alexandros Kastanos",
   journal = "alecokas.github.io",
   year    = "2020",
-  url     = "https://alecokas.github.io/julia/flux/vae/2020/07/20/convolutional-vae-in-flux.html"
+  url     = "http://alecokas.github.io/julia/flux/vae/2020/07/22/convolutional-vae-in-flux.html"
 }
 </code></pre></div></div>
